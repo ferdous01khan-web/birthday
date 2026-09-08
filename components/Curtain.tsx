@@ -90,7 +90,7 @@ interface Remaining {
   seconds: number;
 }
 
-const TARGET = new Date('2026-08-11T00:00:00+05:30').getTime();
+const TARGET = new Date('2026-09-09T00:00:00+05:00').getTime();
 
 async function getRemaining() {
   const res = await fetch('/api/time', { cache: 'no-store' });
@@ -114,15 +114,15 @@ async function getRemaining() {
 }
 
 /** Default target: Aug 11 2026, 00:00 IST */
-const DEFAULT_TARGET = new Date(Date.UTC(2026, 7, 11, 0, 0, 0) - (5 * 60 + 30) * 60 * 1000);
+const DEFAULT_TARGET = new Date('2026-09-09T00:00:00+05:00');
 
 type UnitKey = 'days' | 'hours' | 'minutes' | 'seconds';
 
 export default function ShowtimeCountdown({
-  tickerText = 'SAVE THE DATE · AUGUST 11 ·',
+  tickerText = 'SAVE THE DATE · SEPTEMBER 9th ·',
   marqueeTitle = 'NOW SHOWING',
   marqueeSub = "a Pipi production, live August 11th",
-  doorsText = 'doors open at midnight, IST',
+  doorsText = 'doors open at midnight',
   songSrc,
   songVolume = 0.6,
   redirectTo,
