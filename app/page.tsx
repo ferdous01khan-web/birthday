@@ -16,7 +16,7 @@ export default function Home() {
        <ShowtimeCountdown
       
       // change this date to the desired countdown target date
-      showPreviewButton={true}
+      showPreviewButton={false}
       
       targetDate={new Date('2026-09-09T00:00:00+05:00')}
      
