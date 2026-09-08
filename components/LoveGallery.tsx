@@ -38,7 +38,7 @@ const images = [
 
 const captions = [
   "Cutie 🥹",
-  "Baddie 😎",
+  "Guria 😎",
   "Pretty ✨",
   "My Love 🤍",
   "Sunshine ☀️",
