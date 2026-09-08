@@ -26,7 +26,7 @@
  *   npm install gsap
  *
  * Usage A — reveal in place:
- *   <ShowtimeCountdown targetDate={new Date('2026-09-09T00:00:00+05:00')} songSrc="/song.mp3">
+ *   <ShowtimeCountdown targetDate={new Date('2026-08-11T00:00:00+05:30')} songSrc="/song.mp3">
  *     <YourHomepage />
  *   </ShowtimeCountdown>
  *
@@ -90,7 +90,7 @@ interface Remaining {
   seconds: number;
 }
 
-const TARGET = new Date('2026-09-09T00:00:00+05:00').getTime();
+const TARGET = new Date('2026-08-11T00:00:00+05:30').getTime();
 
 async function getRemaining() {
   const res = await fetch('/api/time', { cache: 'no-store' });
@@ -114,21 +114,21 @@ async function getRemaining() {
 }
 
 /** Default target: Aug 11 2026, 00:00 IST */
-const DEFAULT_TARGET = new Date('2026-09-09T00:00:00+05:00');
+const DEFAULT_TARGET = new Date('2026-09-09T00:00:00+05:00').getTime();
 
 type UnitKey = 'days' | 'hours' | 'minutes' | 'seconds';
 
 export default function ShowtimeCountdown({
-  tickerText = 'SAVE THE DATE · SEPTEMBER 9th ·',
+  tickerText = 'SAVE THE DATE · SEPTEMBER 9 ·',
   marqueeTitle = 'NOW SHOWING',
-  marqueeSub = "a Pipi production, live September 9",
-  doorsText = 'doors open at midnight',
+  marqueeSub = 'a Pipi production, live September 9th',
+  doorsText = 'doors open at midnight, PKT',
   songSrc,
   songVolume = 0.6,
   redirectTo,
   children,
   showPreviewButton = true,
-}: ShowtimeCountdownProps) {
+}:ShowtimeCountdownProps) {
   const router = useRouter();
 
   // Both flip together, only once the lock screen has fully faded out.
