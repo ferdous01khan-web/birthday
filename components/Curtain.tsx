@@ -2189,7 +2189,6 @@ export default function ShowtimeCountdown({
   /* ---------------------------------------------------------------------- */
   /* RENDER                                                                 */
   /* ---------------------------------------------------------------------- */
-
   return (
     <>
       {mounted &&
@@ -2204,3 +2203,4 @@ export default function ShowtimeCountdown({
         )}
     </>
   );
+}
