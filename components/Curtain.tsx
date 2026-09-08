@@ -26,7 +26,7 @@
  *   npm install gsap
  *
  * Usage A — reveal in place:
- *   <ShowtimeCountdown targetDate={new Date('2026-08-11T00:00:00+05:30')} songSrc="/song.mp3">
+ *   <ShowtimeCountdown targetDate={new Date('2026-09-09T00:00:00+05:00')} songSrc="/song.mp3">
  *     <YourHomepage />
  *   </ShowtimeCountdown>
  *
