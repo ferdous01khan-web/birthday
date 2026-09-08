@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -10,6 +11,12 @@
  *  2. Curtains open.
  *  3. Real content mounts behind the overlay.
  *  4. Overlay fades away to reveal the already-painted content.
+ *
+ * Preview:
+ *  - Immediately stops the countdown.
+ *  - Stops audio.
+ *  - Stops overlay animations.
+ *  - Immediately mounts and reveals the real page content.
  *
  * Birthday target:
  *  September 9, 2026 — 12:00 AM PKT (UTC+05:00)
@@ -69,31 +76,43 @@ interface Remaining {
   seconds: number;
 }
 
+type UnitKey =
+  | 'days'
+  | 'hours'
+  | 'minutes'
+  | 'seconds';
+
 /* -------------------------------------------------------------------------- */
-/* TARGET: September 9, 2026 — 12:00 AM PKT                                  */
-/* PKT = UTC+05:00                                                          */
+/* DEFAULT TARGET                                                            */
+/* September 9, 2026 — 12:00 AM PKT                                          */
 /* -------------------------------------------------------------------------- */
 
-const TARGET = new Date(
-  '2026-09-09T00:00:00+05:00'
-).getTime();
-
-/**
- * Default target.
- * September 9, 2026 at midnight PKT.
- */
 const DEFAULT_TARGET = new Date(
   '2026-09-09T00:00:00+05:00'
-).getTime();
+);
 
-async function getRemaining() {
+/* -------------------------------------------------------------------------- */
+/* GET SERVER TIME                                                           */
+/* -------------------------------------------------------------------------- */
+
+async function getRemaining(
+  targetDate: Date
+): Promise<Remaining> {
   const res = await fetch('/api/time', {
     cache: 'no-store',
   });
 
+  if (!res.ok) {
+    throw new Error(
+      `Time API returned ${res.status}`
+    );
+  }
+
   const { now } = await res.json();
 
-  const diff = TARGET - now;
+  const targetMs = targetDate.getTime();
+
+  const diff = targetMs - now;
 
   if (diff <= 0) {
     return {
@@ -110,19 +129,29 @@ async function getRemaining() {
   return {
     total,
     days: Math.floor(total / 86400),
-    hours: Math.floor((total % 86400) / 3600),
-    minutes: Math.floor((total % 3600) / 60),
+    hours: Math.floor(
+      (total % 86400) / 3600
+    ),
+    minutes: Math.floor(
+      (total % 3600) / 60
+    ),
     seconds: total % 60,
   };
 }
 
-type UnitKey = 'days' | 'hours' | 'minutes' | 'seconds';
+/* -------------------------------------------------------------------------- */
+/* COMPONENT                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function ShowtimeCountdown({
-  tickerText = 'SAVE THE DATE · SEPTEMBER 9 ·',
+  targetDate = DEFAULT_TARGET,
+  tickerText =
+    'SAVE THE DATE · SEPTEMBER 9 ·',
   marqueeTitle = 'NOW SHOWING',
-  marqueeSub = 'a Pipi production, live September 9th',
-  doorsText = 'doors open at midnight, PKT',
+  marqueeSub =
+    'a Pipi production, live September 9th',
+  doorsText =
+    'doors open at midnight, PKT',
   songSrc,
   songVolume = 0.6,
   redirectTo,
@@ -135,54 +164,86 @@ export default function ShowtimeCountdown({
   /* STATE                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  const [mounted, setMounted] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] =
+    useState(false);
+
+  const [revealed, setRevealed] =
+    useState(false);
+
+  const [isClient, setIsClient] =
+    useState(false);
 
   /* ---------------------------------------------------------------------- */
   /* REFS                                                                   */
   /* ---------------------------------------------------------------------- */
 
-  const rootRef = useRef<HTMLDivElement>(null);
-  const chromeRef = useRef<HTMLDivElement>(null);
-  const flickerRef = useRef<HTMLDivElement>(null);
+  const rootRef =
+    useRef<HTMLDivElement>(null);
 
-  const curtainLRef = useRef<HTMLDivElement>(null);
-  const curtainRRef = useRef<HTMLDivElement>(null);
+  const chromeRef =
+    useRef<HTMLDivElement>(null);
 
-  const lockContentRef = useRef<HTMLDivElement>(null);
+  const flickerRef =
+    useRef<HTMLDivElement>(null);
 
-  const bulbTopRef = useRef<HTMLDivElement>(null);
-  const bulbBottomRef = useRef<HTMLDivElement>(null);
+  const curtainLRef =
+    useRef<HTMLDivElement>(null);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const curtainRRef =
+    useRef<HTMLDivElement>(null);
 
-  const daysRef = useRef<HTMLDivElement>(null);
-  const hoursRef = useRef<HTMLDivElement>(null);
-  const minutesRef = useRef<HTMLDivElement>(null);
-  const secondsRef = useRef<HTMLDivElement>(null);
+  const lockContentRef =
+    useRef<HTMLDivElement>(null);
 
-  const builtRef = useRef<Record<UnitKey, boolean>>({
-    days: false,
-    hours: false,
-    minutes: false,
-    seconds: false,
-  });
+  const bulbTopRef =
+    useRef<HTMLDivElement>(null);
 
-  const unlockedRef = useRef(false);
-  const reduceMotionRef = useRef(false);
+  const bulbBottomRef =
+    useRef<HTMLDivElement>(null);
+
+  const audioRef =
+    useRef<HTMLAudioElement>(null);
+
+  const daysRef =
+    useRef<HTMLDivElement>(null);
+
+  const hoursRef =
+    useRef<HTMLDivElement>(null);
+
+  const minutesRef =
+    useRef<HTMLDivElement>(null);
+
+  const secondsRef =
+    useRef<HTMLDivElement>(null);
+
+  const builtRef =
+    useRef<Record<UnitKey, boolean>>({
+      days: false,
+      hours: false,
+      minutes: false,
+      seconds: false,
+    });
+
+  const unlockedRef =
+    useRef(false);
+
+  const reduceMotionRef =
+    useRef(false);
 
   const intervalRef =
-    useRef<ReturnType<typeof setInterval> | null>(null);
+    useRef<ReturnType<
+      typeof setInterval
+    > | null>(null);
 
   /* ---------------------------------------------------------------------- */
   /* CLIENT CHECK                                                           */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    reduceMotionRef.current = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
+    reduceMotionRef.current =
+      window.matchMedia(
+        '(prefers-reduced-motion: reduce)'
+      ).matches;
 
     setIsClient(true);
   }, []);
@@ -194,12 +255,15 @@ export default function ShowtimeCountdown({
   useEffect(() => {
     if (revealed) return;
 
-    const original = document.body.style.overflow;
+    const original =
+      document.body.style.overflow;
 
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow =
+      'hidden';
 
     return () => {
-      document.body.style.overflow = original;
+      document.body.style.overflow =
+        original;
     };
   }, [revealed]);
 
@@ -208,7 +272,12 @@ export default function ShowtimeCountdown({
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    if (revealed || !isClient) return;
+    if (
+      revealed ||
+      !isClient
+    ) {
+      return;
+    }
 
     const build = (
       el: HTMLDivElement | null,
@@ -218,18 +287,36 @@ export default function ShowtimeCountdown({
 
       el.innerHTML = '';
 
-      for (let i = 0; i < count; i++) {
-        const dot = document.createElement('span');
+      for (
+        let i = 0;
+        i < count;
+        i++
+      ) {
+        const dot =
+          document.createElement(
+            'span'
+          );
 
-        dot.className = 'bulb-dot';
+        dot.className =
+          'bulb-dot';
 
         el.appendChild(dot);
       }
     };
 
-    build(bulbTopRef.current, 22);
-    build(bulbBottomRef.current, 22);
-  }, [revealed, isClient]);
+    build(
+      bulbTopRef.current,
+      22
+    );
+
+    build(
+      bulbBottomRef.current,
+      22
+    );
+  }, [
+    revealed,
+    isClient,
+  ]);
 
   /* ---------------------------------------------------------------------- */
   /* AMBIENT MOTION                                                         */
@@ -268,12 +355,24 @@ export default function ShowtimeCountdown({
     function flickerLoop() {
       if (cancelled) return;
 
-      gsap.to(flickerRef.current, {
-        opacity: () => Math.random() * 0.045,
-        duration: () => 0.06 + Math.random() * 0.18,
-        ease: 'power1.inOut',
-        onComplete: flickerLoop,
-      });
+      gsap.to(
+        flickerRef.current,
+        {
+          opacity: () =>
+            Math.random() *
+            0.045,
+
+          duration: () =>
+            0.06 +
+            Math.random() *
+              0.18,
+
+          ease: 'power1.inOut',
+
+          onComplete:
+            flickerLoop,
+        }
+      );
     }
 
     flickerLoop();
@@ -283,11 +382,18 @@ export default function ShowtimeCountdown({
 
       bulbTween?.kill();
 
-      if (flickerRef.current) {
-        gsap.killTweensOf(flickerRef.current);
+      if (
+        flickerRef.current
+      ) {
+        gsap.killTweensOf(
+          flickerRef.current
+        );
       }
     };
-  }, [revealed, isClient]);
+  }, [
+    revealed,
+    isClient,
+  ]);
 
   /* ---------------------------------------------------------------------- */
   /* AUDIO                                                                  */
@@ -302,7 +408,8 @@ export default function ShowtimeCountdown({
       return;
     }
 
-    const audio = audioRef.current;
+    const audio =
+      audioRef.current;
 
     if (!audio) return;
 
@@ -310,7 +417,11 @@ export default function ShowtimeCountdown({
 
     const tryPlay = () => {
       audio.play().catch(() => {
-        // Browser blocked autoplay.
+        /*
+         * Browser blocked autoplay.
+         * The pointerdown listener below
+         * will try again after interaction.
+         */
       });
     };
 
@@ -342,258 +453,434 @@ export default function ShowtimeCountdown({
   /* ODOMETER                                                               */
   /* ---------------------------------------------------------------------- */
 
-  const buildColumns = useCallback(
-    (
-      el: HTMLDivElement,
-      digits: number[]
-    ) => {
-      el.innerHTML = '';
+  const buildColumns =
+    useCallback(
+      (
+        el: HTMLDivElement,
+        digits: number[]
+      ) => {
+        el.innerHTML = '';
 
-      for (const d of digits) {
-        void d;
+        for (
+          const d of digits
+        ) {
+          void d;
 
-        const col =
-          document.createElement('span');
+          const col =
+            document.createElement(
+              'span'
+            );
 
-        col.className = 'od-col';
+          col.className =
+            'od-col';
 
-        const strip =
-          document.createElement('span');
+          const strip =
+            document.createElement(
+              'span'
+            );
 
-        strip.className = 'od-strip';
+          strip.className =
+            'od-strip';
 
-        for (let i = 0; i < 10; i++) {
-          const s =
-            document.createElement('span');
+          for (
+            let i = 0;
+            i < 10;
+            i++
+          ) {
+            const digit =
+              document.createElement(
+                'span'
+              );
 
-          s.className = 'od-digit';
-          s.textContent = String(i);
+            digit.className =
+              'od-digit';
 
-          strip.appendChild(s);
-        }
+            digit.textContent =
+              String(i);
 
-        col.appendChild(strip);
-        el.appendChild(col);
-      }
-    },
-    []
-  );
+            strip.appendChild(
+              digit
+            );
+          }
 
-  const setDigits = useCallback(
-    (
-      el: HTMLDivElement,
-      digits: number[],
-      animate: boolean
-    ) => {
-      [...el.children].forEach((col, i) => {
-        const h =
-          (col as HTMLElement)
-            .getBoundingClientRect()
-            .height;
-
-        const strip =
-          col.querySelector<HTMLElement>(
-            '.od-strip'
+          col.appendChild(
+            strip
           );
 
-        if (!strip) return;
+          el.appendChild(
+            col
+          );
+        }
+      },
+      []
+    );
+
+  const setDigits =
+    useCallback(
+      (
+        el: HTMLDivElement,
+        digits: number[],
+        animate: boolean
+      ) => {
+        [
+          ...el.children,
+        ].forEach(
+          (col, i) => {
+            const h =
+              (
+                col as HTMLElement
+              ).getBoundingClientRect()
+                .height;
+
+            const strip =
+              col.querySelector<HTMLElement>(
+                '.od-strip'
+              );
+
+            if (!strip)
+              return;
+
+            if (
+              animate &&
+              !reduceMotionRef.current
+            ) {
+              gsap.to(
+                strip,
+                {
+                  y:
+                    -digits[i] *
+                    h,
+
+                  duration: 0.5,
+
+                  ease:
+                    'power3.out',
+                }
+              );
+            } else {
+              gsap.set(
+                strip,
+                {
+                  y:
+                    -digits[i] *
+                    h,
+                }
+              );
+            }
+          }
+        );
+      },
+      []
+    );
+
+  const paintUnit =
+    useCallback(
+      (
+        el: HTMLDivElement | null,
+        key: UnitKey,
+        value: string
+      ) => {
+        if (!el) return;
+
+        const digits =
+          value
+            .split('')
+            .map(Number);
 
         if (
-          animate &&
-          !reduceMotionRef.current
+          !builtRef.current[key]
         ) {
-          gsap.to(strip, {
-            y: -digits[i] * h,
-            duration: 0.5,
-            ease: 'power3.out',
-          });
-        } else {
-          gsap.set(strip, {
-            y: -digits[i] * h,
-          });
-        }
-      });
-    },
-    []
-  );
-
-  const paintUnit = useCallback(
-    (
-      el: HTMLDivElement | null,
-      key: UnitKey,
-      value: string
-    ) => {
-      if (!el) return;
-
-      const digits = value
-        .split('')
-        .map(Number);
-
-      if (!builtRef.current[key]) {
-        buildColumns(el, digits);
-
-        builtRef.current[key] = true;
-
-        requestAnimationFrame(() => {
-          setDigits(
+          buildColumns(
             el,
-            digits,
-            false
+            digits
           );
-        });
 
+          builtRef.current[key] =
+            true;
+
+          requestAnimationFrame(
+            () => {
+              setDigits(
+                el,
+                digits,
+                false
+              );
+            }
+          );
+
+          return;
+        }
+
+        setDigits(
+          el,
+          digits,
+          true
+        );
+      },
+      [
+        buildColumns,
+        setDigits,
+      ]
+    );
+
+  /* ---------------------------------------------------------------------- */
+  /* PREVIEW                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  const triggerPreview =
+    useCallback(() => {
+      if (
+        unlockedRef.current
+      ) {
         return;
       }
 
-      setDigits(
-        el,
-        digits,
-        true
-      );
-    },
-    [
-      buildColumns,
-      setDigits,
-    ]
-  );
+      unlockedRef.current =
+        true;
+
+      /*
+       * Stop countdown.
+       */
+      if (
+        intervalRef.current
+      ) {
+        clearInterval(
+          intervalRef.current
+        );
+
+        intervalRef.current =
+          null;
+      }
+
+      /*
+       * Stop all GSAP animations
+       * belonging to this overlay.
+       */
+      if (rootRef.current) {
+        gsap.killTweensOf(
+          rootRef.current.querySelectorAll(
+            '*'
+          )
+        );
+
+        gsap.killTweensOf(
+          rootRef.current
+        );
+      }
+
+      /*
+       * Stop audio immediately.
+       */
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime =
+          0;
+      }
+
+      /*
+       * Immediately mount the real
+       * page and remove the overlay.
+       */
+      setMounted(true);
+      setRevealed(true);
+    }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* UNLOCK / REVEAL                                                        */
+  /* UNLOCK / NORMAL COUNTDOWN REVEAL                                       */
   /* ---------------------------------------------------------------------- */
 
-  const triggerUnlock = useCallback(() => {
-    if (unlockedRef.current) return;
+  const triggerUnlock =
+    useCallback(() => {
+      if (
+        unlockedRef.current
+      ) {
+        return;
+      }
 
-    unlockedRef.current = true;
+      unlockedRef.current =
+        true;
 
-    /* Stop countdown */
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+      /*
+       * Stop countdown.
+       */
+      if (
+        intervalRef.current
+      ) {
+        clearInterval(
+          intervalRef.current
+        );
 
-    /* Stop ambient animations */
-    gsap.killTweensOf(
-      rootRef.current?.querySelectorAll(
-        '.bulb-dot'
-      ) ?? []
-    );
+        intervalRef.current =
+          null;
+      }
 
-    if (flickerRef.current) {
-      gsap.killTweensOf(
+      /*
+       * Stop ambient animations.
+       */
+      if (rootRef.current) {
+        gsap.killTweensOf(
+          rootRef.current.querySelectorAll(
+            '.bulb-dot'
+          )
+        );
+      }
+
+      if (
         flickerRef.current
-      );
-    }
+      ) {
+        gsap.killTweensOf(
+          flickerRef.current
+        );
+      }
 
-    const finish = () => {
-      if (redirectTo) {
-        router.push(redirectTo);
+      const finish = () => {
+        /*
+         * Optional redirect.
+         */
+        if (redirectTo) {
+          router.push(
+            redirectTo
+          );
+
+          return;
+        }
+
+        /*
+         * Mount real content while
+         * overlay is still visible.
+         */
+        setMounted(true);
+
+        requestAnimationFrame(
+          () => {
+            if (
+              reduceMotionRef.current
+            ) {
+              setRevealed(true);
+              return;
+            }
+
+            gsap.to(
+              rootRef.current,
+              {
+                opacity: 0,
+
+                duration: 0.6,
+
+                delay: 0.15,
+
+                ease:
+                  'power2.out',
+
+                onComplete: () => {
+                  setRevealed(
+                    true
+                  );
+                },
+              }
+            );
+          }
+        );
+      };
+
+      const curtainL =
+        curtainLRef.current;
+
+      const curtainR =
+        curtainRRef.current;
+
+      /*
+       * Reduced motion / missing
+       * curtain fallback.
+       */
+      if (
+        reduceMotionRef.current ||
+        !curtainL ||
+        !curtainR
+      ) {
+        finish();
         return;
       }
 
       /*
-       * Mount real content while overlay is still
-       * completely opaque.
+       * Fade audio smoothly.
        */
-      setMounted(true);
+      if (
+        audioRef.current &&
+        !audioRef.current.paused
+      ) {
+        gsap.to(
+          audioRef.current,
+          {
+            volume: 0,
 
-      requestAnimationFrame(() => {
-        if (reduceMotionRef.current) {
-          setRevealed(true);
-          return;
-        }
+            duration: 1.1,
 
-        gsap.to(rootRef.current, {
-          opacity: 0,
-          duration: 0.6,
-          delay: 0.15,
-          ease: 'power2.out',
-
-          onComplete: () => {
-            setRevealed(true);
-          },
-        });
-      });
-    };
-
-    const curtainL =
-      curtainLRef.current;
-
-    const curtainR =
-      curtainRRef.current;
-
-    if (
-      reduceMotionRef.current ||
-      !curtainL ||
-      !curtainR
-    ) {
-      finish();
-      return;
-    }
-
-    /* Fade audio smoothly */
-    if (
-      audioRef.current &&
-      !audioRef.current.paused
-    ) {
-      gsap.to(audioRef.current, {
-        volume: 0,
-        duration: 1.1,
-        ease: 'power1.in',
-      });
-    }
-
-    /* Curtain animation */
-    const tl = gsap.timeline({
-      onComplete: finish,
-    });
-
-    tl.to(
-      lockContentRef.current,
-      {
-        opacity: 0,
-        y: -10,
-        duration: 0.35,
-        ease: 'power2.inOut',
+            ease:
+              'power1.in',
+          }
+        );
       }
-    )
-      .addLabel(
-        'open',
-        '+=0.05'
-      )
-      .to(
-        curtainL,
-        {
-          xPercent: -100,
-          duration: 1.0,
-          ease: 'power3.inOut',
-          force3D: true,
-        },
-        'open'
-      )
-      .to(
-        curtainR,
-        {
-          xPercent: 100,
-          duration: 1.0,
-          ease: 'power3.inOut',
-          force3D: true,
-        },
-        'open'
-      )
-      .to(
-        chromeRef.current,
+
+      /*
+       * Curtain animation.
+       */
+      const tl =
+        gsap.timeline({
+          onComplete:
+            finish,
+        });
+
+      tl.to(
+        lockContentRef.current,
         {
           opacity: 0,
-          duration: 0.6,
-          ease: 'power2.out',
-        },
-        'open'
-      );
-  }, [
-    redirectTo,
-    router,
-  ]);
+          y: -10,
+          duration: 0.35,
+          ease:
+            'power2.inOut',
+        }
+      )
+        .addLabel(
+          'open',
+          '+=0.05'
+        )
+        .to(
+          curtainL,
+          {
+            xPercent: -100,
+            duration: 1.0,
+            ease:
+              'power3.inOut',
+            force3D: true,
+          },
+          'open'
+        )
+        .to(
+          curtainR,
+          {
+            xPercent: 100,
+            duration: 1.0,
+            ease:
+              'power3.inOut',
+            force3D: true,
+          },
+          'open'
+        )
+        .to(
+          chromeRef.current,
+          {
+            opacity: 0,
+            duration: 0.6,
+            ease:
+              'power2.out',
+          },
+          'open'
+        );
+    }, [
+      redirectTo,
+      router,
+    ]);
 
   /* ---------------------------------------------------------------------- */
   /* COUNTDOWN                                                              */
@@ -602,45 +889,66 @@ export default function ShowtimeCountdown({
   useEffect(() => {
     if (revealed) return;
 
+    let cancelled = false;
+
     async function paint() {
       try {
         const r =
-          await getRemaining();
+          await getRemaining(
+            targetDate
+          );
+
+        if (cancelled) {
+          return;
+        }
 
         paintUnit(
           daysRef.current,
           'days',
           String(
-            Math.min(r.days, 99)
+            Math.min(
+              r.days,
+              99
+            )
           ).padStart(2, '0')
         );
 
         paintUnit(
           hoursRef.current,
           'hours',
-          String(r.hours).padStart(2, '0')
+          String(
+            r.hours
+          ).padStart(2, '0')
         );
 
         paintUnit(
           minutesRef.current,
           'minutes',
-          String(r.minutes).padStart(2, '0')
+          String(
+            r.minutes
+          ).padStart(2, '0')
         );
 
         paintUnit(
           secondsRef.current,
           'seconds',
-          String(r.seconds).padStart(2, '0')
+          String(
+            r.seconds
+          ).padStart(2, '0')
         );
 
-        if (r.total <= 0) {
+        if (
+          r.total <= 0
+        ) {
           triggerUnlock();
         }
       } catch (error) {
-        console.error(
-          'Countdown time fetch failed:',
-          error
-        );
+        if (!cancelled) {
+          console.error(
+            'Countdown time fetch failed:',
+            error
+          );
+        }
       }
     }
 
@@ -653,16 +961,22 @@ export default function ShowtimeCountdown({
       );
 
     return () => {
-      if (intervalRef.current) {
+      cancelled = true;
+
+      if (
+        intervalRef.current
+      ) {
         clearInterval(
           intervalRef.current
         );
 
-        intervalRef.current = null;
+        intervalRef.current =
+          null;
       }
     };
   }, [
     revealed,
+    targetDate,
     paintUnit,
     triggerUnlock,
   ]);
@@ -707,7 +1021,6 @@ export default function ShowtimeCountdown({
 
       {/* Cinema lock screen */}
       <div className="lock">
-
         <div
           className="curtain-l"
           ref={curtainLRef}
@@ -719,7 +1032,6 @@ export default function ShowtimeCountdown({
         />
 
         <div className="screen">
-
           <span
             className="corner corner-tl"
             aria-hidden="true"
@@ -752,7 +1064,6 @@ export default function ShowtimeCountdown({
             className="lock-content"
             ref={lockContentRef}
           >
-
             <div
               className="bulb-rail top"
               ref={bulbTopRef}
@@ -807,7 +1118,6 @@ export default function ShowtimeCountdown({
 
             {/* DAYS */}
             <div className="hero-days">
-
               <div
                 className="od-number"
                 ref={daysRef}
@@ -816,14 +1126,11 @@ export default function ShowtimeCountdown({
               <div className="hero-caption">
                 days to curtain
               </div>
-
             </div>
 
             {/* HOURS / MINUTES / SECONDS */}
             <div className="rest-row">
-
               <div className="bulb-tile">
-
                 <div
                   className="od-number"
                   ref={hoursRef}
@@ -832,11 +1139,9 @@ export default function ShowtimeCountdown({
                 <span className="bulb-label">
                   hrs
                 </span>
-
               </div>
 
               <div className="bulb-tile">
-
                 <div
                   className="od-number"
                   ref={minutesRef}
@@ -845,11 +1150,9 @@ export default function ShowtimeCountdown({
                 <span className="bulb-label">
                   min
                 </span>
-
               </div>
 
               <div className="bulb-tile">
-
                 <div
                   className="od-number"
                   ref={secondsRef}
@@ -858,9 +1161,7 @@ export default function ShowtimeCountdown({
                 <span className="bulb-label">
                   sec
                 </span>
-
               </div>
-
             </div>
 
             <div
@@ -871,23 +1172,27 @@ export default function ShowtimeCountdown({
             <p className="lock-foot">
               {doorsText}
             </p>
-
           </div>
         </div>
       </div>
 
-      {/* --------------------------------------------------------------- */}
+      {/* ---------------------------------------------------------------- */}
       {/* PREVIEW BUTTON                                                   */}
-      {/* --------------------------------------------------------------- */}
-      {showPreviewButton && (
-        <button
-          type="button"
-          className="preview-btn"
-          onClick={triggerUnlock}
-        >
-          Preview
-        </button>
-      )}
+      {/* ---------------------------------------------------------------- */}
+
+      {showPreviewButton &&
+        !revealed && (
+          <button
+            type="button"
+            className="preview-btn"
+            onClick={
+              triggerPreview
+            }
+            aria-label="Preview birthday page"
+          >
+            Preview
+          </button>
+        )}
 
       {/* ---------------------------------------------------------------- */}
       {/* STYLES                                                            */}
@@ -1094,50 +1399,35 @@ export default function ShowtimeCountdown({
         }
 
         /* -------------------------------------------------------------- */
-        /* PREVIEW BUTTON — FIXED                                        */
+        /* PREVIEW BUTTON                                                  */
         /* -------------------------------------------------------------- */
 
         .showtime-root .preview-btn {
-          position: fixed;
+          position: absolute;
 
           top: max(
-            16px,
+            20px,
             env(safe-area-inset-top)
           );
 
           right: max(
-            16px,
+            20px,
             env(safe-area-inset-right)
           );
 
-          z-index: 99999;
+          z-index: 100000;
 
-          display: block;
+          display: flex;
 
-          visibility: visible;
+          align-items: center;
+          justify-content: center;
 
-          opacity: 1;
+          min-height: 34px;
 
-          font-family:
-            var(--font-display);
+          padding: 8px 16px;
 
-          font-size: 12px;
-
-          line-height: 1;
-
-          letter-spacing: 0.14em;
-
-          text-transform: uppercase;
-
-          color: var(--gold);
-
-          background:
-            rgba(
-              18,
-              13,
-              10,
-              0.85
-            );
+          appearance: none;
+          -webkit-appearance: none;
 
           border:
             1px solid
@@ -1145,42 +1435,76 @@ export default function ShowtimeCountdown({
               212,
               175,
               106,
-              0.55
+              0.65
             );
 
           border-radius: 999px;
 
-          padding: 8px 16px;
+          background:
+            rgba(
+              18,
+              13,
+              10,
+              0.92
+            );
+
+          color: var(--gold);
+
+          font-family:
+            var(--font-display);
+
+          font-size: 12px;
+
+          font-weight: 500;
+
+          line-height: 1;
+
+          letter-spacing:
+            0.14em;
+
+          text-transform:
+            uppercase;
 
           cursor: pointer;
 
           pointer-events: auto;
 
-          backdrop-filter: blur(6px);
+          opacity: 1;
+
+          visibility: visible;
+
+          backdrop-filter:
+            blur(8px);
 
           -webkit-backdrop-filter:
-            blur(6px);
+            blur(8px);
 
           box-shadow:
             0 4px 20px
-            rgba(0, 0, 0, 0.35),
+            rgba(
+              0,
+              0,
+              0,
+              0.5
+            ),
 
-            0 0 12px
+            0 0 14px
             rgba(
               212,
               175,
               106,
-              0.08
+              0.12
             );
 
           transition:
+            transform 0.2s ease,
             background 0.2s ease,
-            color 0.2s ease,
             border-color 0.2s ease,
-            transform 0.2s ease;
+            color 0.2s ease;
         }
 
-        .showtime-root .preview-btn:hover {
+        .showtime-root
+        .preview-btn:hover {
           background:
             rgba(
               212,
@@ -1199,9 +1523,19 @@ export default function ShowtimeCountdown({
             translateY(-1px);
         }
 
-        .showtime-root .preview-btn:active {
+        .showtime-root
+        .preview-btn:active {
           transform:
             translateY(0);
+        }
+
+        .showtime-root
+        .preview-btn:focus-visible {
+          outline:
+            2px solid
+            var(--amber);
+
+          outline-offset: 3px;
         }
 
         /* -------------------------------------------------------------- */
@@ -1255,7 +1589,12 @@ export default function ShowtimeCountdown({
               ),
 
             inset 0 0 40px
-              rgba(0, 0, 0, 0.4);
+              rgba(
+                0,
+                0,
+                0,
+                0.4
+              );
         }
 
         /* -------------------------------------------------------------- */
@@ -1325,7 +1664,8 @@ export default function ShowtimeCountdown({
           transform:
             translateZ(0);
 
-          backface-visibility: hidden;
+          backface-visibility:
+            hidden;
 
           background-image:
             radial-gradient(
@@ -1341,10 +1681,30 @@ export default function ShowtimeCountdown({
 
             linear-gradient(
               180deg,
-              rgba(0,0,0,0.25) 0%,
-              rgba(0,0,0,0) 12%,
-              rgba(0,0,0,0) 88%,
-              rgba(0,0,0,0.3) 100%
+              rgba(
+                0,
+                0,
+                0,
+                0.25
+              ) 0%,
+              rgba(
+                0,
+                0,
+                0,
+                0
+              ) 12%,
+              rgba(
+                0,
+                0,
+                0,
+                0
+              ) 88%,
+              rgba(
+                0,
+                0,
+                0,
+                0.3
+              ) 100%
             ),
 
             repeating-linear-gradient(
@@ -1358,7 +1718,12 @@ export default function ShowtimeCountdown({
 
           box-shadow:
             0 0 60px
-            rgba(0, 0, 0, 0.6)
+            rgba(
+              0,
+              0,
+              0,
+              0.6
+            )
             inset;
         }
 
@@ -1417,11 +1782,13 @@ export default function ShowtimeCountdown({
           width: 100%;
         }
 
-        .showtime-root .bulb-rail.top {
+        .showtime-root
+        .bulb-rail.top {
           margin-bottom: 7px;
         }
 
-        .showtime-root .bulb-rail.bottom {
+        .showtime-root
+        .bulb-rail.bottom {
           margin-top: 7px;
           margin-bottom: 24px;
         }
@@ -1483,7 +1850,8 @@ export default function ShowtimeCountdown({
             );
         }
 
-        .showtime-root .ticker-track {
+        .showtime-root
+        .ticker-track {
           display: flex;
 
           white-space: nowrap;
@@ -1558,10 +1926,20 @@ export default function ShowtimeCountdown({
 
           text-shadow:
             0 1px 0
-              rgba(0, 0, 0, 0.5),
+              rgba(
+                0,
+                0,
+                0,
+                0.5
+              ),
 
             0 2px 0
-              rgba(0, 0, 0, 0.35),
+              rgba(
+                0,
+                0,
+                0,
+                0.35
+              ),
 
             0 0 22px
               var(--amber-glow),
@@ -1908,7 +2286,8 @@ export default function ShowtimeCountdown({
         .showtime-root
         .bulb-tile
         .od-number {
-          display: flex;
+          display:
+            flex;
 
           gap: 1px;
         }
@@ -1953,7 +2332,8 @@ export default function ShowtimeCountdown({
               40px
             );
 
-          overflow: hidden;
+          overflow:
+            hidden;
 
           display:
             inline-block;
@@ -2018,7 +2398,8 @@ export default function ShowtimeCountdown({
 
           z-index: 1;
 
-          pointer-events: none;
+          pointer-events:
+            none;
         }
 
         .showtime-root .od-strip {
@@ -2036,8 +2417,7 @@ export default function ShowtimeCountdown({
               40px
             );
 
-          display:
-            flex;
+          display: flex;
 
           align-items:
             center;
@@ -2048,7 +2428,8 @@ export default function ShowtimeCountdown({
           font-family:
             var(--font-mono);
 
-          font-weight: 700;
+          font-weight:
+            700;
 
           font-size:
             clamp(
@@ -2079,7 +2460,8 @@ export default function ShowtimeCountdown({
               60%
             );
 
-          height: 1px;
+          height:
+            1px;
 
           margin-top:
             2.4cqh;
@@ -2136,13 +2518,40 @@ export default function ShowtimeCountdown({
           .showtime-root {
             --rail: 12px;
           }
+
+          .showtime-root
+          .preview-btn {
+            top:
+              max(
+                14px,
+                env(
+                  safe-area-inset-top
+                )
+              );
+
+            right:
+              max(
+                14px,
+                env(
+                  safe-area-inset-right
+                )
+              );
+
+            min-height:
+              32px;
+
+            padding:
+              7px 13px;
+
+            font-size:
+              11px;
+          }
         }
 
         @media (
           max-height: 480px
         ),
         (max-width: 380px) {
-
           .showtime-root
           .bulb-rail.top,
 
@@ -2162,7 +2571,6 @@ export default function ShowtimeCountdown({
         @media (
           prefers-reduced-motion: reduce
         ) {
-
           .showtime-root
           .ticker-track {
             animation:
@@ -2189,6 +2597,7 @@ export default function ShowtimeCountdown({
   /* ---------------------------------------------------------------------- */
   /* RENDER                                                                 */
   /* ---------------------------------------------------------------------- */
+
   return (
     <>
       {mounted &&
@@ -2204,3 +2613,4 @@ export default function ShowtimeCountdown({
     </>
   );
 }
+
