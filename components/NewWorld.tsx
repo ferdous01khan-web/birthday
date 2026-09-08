@@ -80,7 +80,7 @@ function CardProvider({ children }: { children: React.ReactNode }) {
 
   const cards: Card[] = [
     // { id: "1", imageUrl: "/ref/💜.jpg", alt: "Cutie", title: "Cutie" },
-    { id: "2", imageUrl: "/ref/girl.jpg", alt: "Baddie", title: "Baddie" },
+    { id: "2", imageUrl: "/ref/girl.jpg", alt: "Guria", title: "Guria" },
     { id: "3", imageUrl: "/ref/girl2.jpg", alt: "Angel", title: "Angel" },
     { id: "4", imageUrl: "/ref/girl3.jpg", alt: "Dreamgirl", title: "Dreamgirl" },
     { id: "5", imageUrl: "/ref/girl4.jpg", alt: "Sweetheart", title: "Sweetheart" },
