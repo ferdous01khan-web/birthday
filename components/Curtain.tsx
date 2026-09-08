@@ -121,10 +121,10 @@ const DEFAULT_TARGET = new Date(
 type UnitKey = 'days' | 'hours' | 'minutes' | 'seconds';
 
 export default function ShowtimeCountdown({
-  tickerText = 'SAVE THE DATE · AUGUST 11 ·',
+  tickerText = 'SAVE THE DATE · SEPTEMBER 9 ·',
   marqueeTitle = 'NOW SHOWING',
-  marqueeSub = "a Pipi production, live August 11th",
-  doorsText = 'doors open at midnight, IST',
+  marqueeSub = 'a Pipi production, live September 9th',
+  doorsText = 'doors open at midnight, PKT',
   songSrc,
   songVolume = 0.6,
   redirectTo,
