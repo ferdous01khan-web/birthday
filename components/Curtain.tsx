@@ -121,7 +121,7 @@ type UnitKey = 'days' | 'hours' | 'minutes' | 'seconds';
 export default function ShowtimeCountdown({
   tickerText = 'SAVE THE DATE · SEPTEMBER 9th ·',
   marqueeTitle = 'NOW SHOWING',
-  marqueeSub = "a Pipi production, live August 11th",
+  marqueeSub = "a Pipi production, live September 9",
   doorsText = 'doors open at midnight',
   songSrc,
   songVolume = 0.6,
